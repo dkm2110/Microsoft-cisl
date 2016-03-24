@@ -102,6 +102,10 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Client
                         GenericType<IMRUDriver<TMapInput, TMapOutput, TResult, TDataHandler>>.Class)
                     .Set(DriverConfiguration.OnContextFailed,
                         GenericType<IMRUDriver<TMapInput, TMapOutput, TResult, TDataHandler>>.Class)
+                    .Set(DriverConfiguration.OnTaskFailed,
+                        GenericType<IMRUDriver<TMapInput, TMapOutput, TResult, TDataHandler>>.Class)
+                    .Set(DriverConfiguration.OnTaskRunning,
+                        GenericType<IMRUDriver<TMapInput, TMapOutput, TResult, TDataHandler>>.Class)
                     .Set(DriverConfiguration.CustomTraceLevel, TraceLevel.Info.ToString())
                     .Build(),
                 TangFactory.GetTang().NewConfigurationBuilder()

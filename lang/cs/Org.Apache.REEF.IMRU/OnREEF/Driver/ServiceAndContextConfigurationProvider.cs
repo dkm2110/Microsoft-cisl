@@ -152,7 +152,7 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
                 Console.WriteLine("$$$$$$$Inside next group omm. config");
                 if (_dataLoadedEvaluators.Contains(evaluatorId))
                 {
-                    Exceptions.Throw(new Exception("The evaluator is already submitted with group comm context"), Logger);
+                    Exceptions.Throw(new Exception("The task is already submitted to evaluator with group comm configurations"), Logger);
                 }
 
                 if (!_submittedEvaluators.Contains(evaluatorId))
@@ -165,7 +165,10 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
 
                 _submittedEvaluators.Remove(evaluatorId);
                 _dataLoadedEvaluators.Add(evaluatorId);
-                Console.WriteLine("$$$$$$$Getting group omm. config");
+                Console.WriteLine("$$$$$$$Getting group omm. config {0} {1} {2}",
+                    _submittedEvaluators.Count,
+                    _dataLoadedEvaluators.Count,
+                    _partitionDescriptors.Count);
                 return _configurationProvider[evaluatorId].GroupCommConfig;
             }
         }
@@ -182,7 +185,7 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
             {
                 if (_submittedEvaluators.Contains(evaluatorId))
                 {
-                    Exceptions.Throw(new Exception("The evaluator is already submitted"), Logger);
+                    Exceptions.Throw(new Exception("The tas is already running on evaluator"), Logger);
                 }
 
                 if (_dataLoadedEvaluators.Contains(evaluatorId))

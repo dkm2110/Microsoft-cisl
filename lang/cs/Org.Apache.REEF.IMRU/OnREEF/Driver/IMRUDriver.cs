@@ -20,6 +20,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using Org.Apache.REEF.Common.Context;
 using Org.Apache.REEF.Common.Tasks;
 using Org.Apache.REEF.Driver;
 using Org.Apache.REEF.Driver.Context;
@@ -56,7 +57,7 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
     /// <typeparam name="TDataHandler">Data Handler type in IInputPartition</typeparam>
     internal sealed class IMRUDriver<TMapInput, TMapOutput, TResult, TDataHandler> : IObserver<IDriverStarted>,
         IObserver<IAllocatedEvaluator>, IObserver<IActiveContext>, IObserver<ICompletedTask>, IObserver<IFailedEvaluator>,
-        IObserver<IFailedContext>
+        IObserver<IFailedContext>, IObserver<IFailedTask>, IObserver<IRunningTask>
     {
         private static readonly Logger Logger = Logger.GetLogger(typeof(IMRUDriver<TMapInput, TMapOutput, TResult, TDataHandler>));
 
@@ -80,6 +81,7 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
         private bool _reachedUpdateTaskActiveContext = false;
         private readonly bool _invokeGC;
         private bool _imruDone = false;
+        private int _taskReady = 0;
         private readonly ServiceAndContextConfigurationProvider<TMapInput, TMapOutput, TDataHandler>
             _serviceAndContextConfigurationProvider;
 
@@ -143,12 +145,12 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
         /// <param name="allocatedEvaluator">The allocated evaluator</param>
         public void OnNext(IAllocatedEvaluator allocatedEvaluator)
         {
-            if (allocatedEvaluator.EvaluatorBatchId.Equals("Master"))
+            if (!_reachedUpdateTaskActiveContext)
             {
                 Console.WriteLine("$$$$ GEtting maser conf");
-                var configs =
-                    _serviceAndContextConfigurationProvider.GetMasterGroupCommConfiguration(allocatedEvaluator.Id);
-                allocatedEvaluator.SubmitContextAndService(configs.Context, configs.Service);
+                allocatedEvaluator.SubmitContext(
+                    ContextConfiguration.ConfigurationModule.Set(ContextConfiguration.Identifier, "Master Root Context")
+                        .Build());
             }
             else
             {
@@ -168,27 +170,23 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
         {
             Logger.Log(Level.Verbose, string.Format("Received Active Context {0}", activeContext.Id));
 
-            if (_groupCommDriver.IsMasterTaskContext(activeContext))
+            if (!_reachedUpdateTaskActiveContext)
             {
+                Console.WriteLine("$$$$ submitting master task");
                 _reachedUpdateTaskActiveContext = true;
-                RequestMapEvaluators(_dataSet.Count);
+                var groupCommConfig =
+                   _serviceAndContextConfigurationProvider.GetMasterGroupCommConfiguration(activeContext.EvaluatorId);
                 _commGroup.AddTask(IMRUConstants.UpdateTaskName);
-                _groupCommTaskStarter.QueueTask(UpdateTaskConfiguration(), activeContext);
+                var finalTaskConfig = Configurations.Merge(groupCommConfig.Service,
+                    UpdateTaskConfiguration());
+                _groupCommTaskStarter.QueueTask(finalTaskConfig, activeContext);
+                RequestMapEvaluators(_dataSet.Count);
             }
             else
             {
-                if (!_serviceAndContextConfigurationProvider.IsReadyForTask(activeContext.EvaluatorId))
-                {
-                    Console.WriteLine("$$$$ ENtering group comm indide driver");
-
-                    var config =
+                Console.WriteLine("$$$$ submitting map task");
+                var groupCommConfig =
                         _serviceAndContextConfigurationProvider.GetNextGroupCommConfiguration(activeContext.EvaluatorId);
-                    activeContext.SubmitContext(Configurations.Merge(config.Context, config.Service));
-                    return;
-                }
-
-                Console.WriteLine("$$$$ ENtering task submission indide driver");
-
                 string taskId;
                 if (!_taskIdStack.TryPop(out taskId))
                 {
@@ -198,7 +196,11 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
                 }
 
                 _commGroup.AddTask(taskId);
-                _groupCommTaskStarter.QueueTask(MapTaskConfiguration(activeContext, taskId), activeContext);
+                var finalTaskConfig = Configurations.Merge(groupCommConfig.Service,
+                    MapTaskConfiguration(activeContext, taskId));
+                _groupCommTaskStarter.QueueTask(finalTaskConfig, activeContext);
+                Interlocked.Increment(ref _taskReady);
+                Console.WriteLine(string.Format("$$$$ {0} Tasks are ready for submission", _taskReady));
             }
         }
 
@@ -209,6 +211,7 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
         /// <param name="completedTask">The link to the completed task</param>
         public void OnNext(ICompletedTask completedTask)
         {
+            Logger.Log(Level.Info, string.Format("Received completed task message from task Id: {0}", completedTask.Id));
             _completedTasks.Add(completedTask);
 
             if (_completedTasks.Count != _dataSet.Count + 1)
@@ -219,7 +222,7 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
             _imruDone = true;
             foreach (var task in _completedTasks)
             {
-                Logger.Log(Level.Verbose, string.Format("Disposing task: {0}", task.Id));
+                Logger.Log(Level.Info, string.Format("Disposing task: {0}", task.Id));
                 task.ActiveContext.Dispose();
             }
         }
@@ -231,7 +234,7 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
                 return;
             }
 
-            Logger.Log(Level.Info, "An evaluator failed, checking if it failed before context and service was submitted");
+            Logger.Log(Level.Info, string.Format("Evaluator with Id: {0} failed with Exception: {1}", value.Id, value.EvaluatorException));
             int currFailedEvaluators = Interlocked.Increment(ref _currentFailedEvaluators);          
             if (currFailedEvaluators > _allowedFailedEvaluators)
             {
@@ -239,17 +242,18 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
                     Logger);
             }
 
-            Logger.Log(Level.Info, "Requesting for the failed evaluator again");
             _serviceAndContextConfigurationProvider.EvaluatorFailed(value.Id);
 
             // if active context stage is reached for Update Task then assume that failed
             // evaluator belongs to mapper
             if (_reachedUpdateTaskActiveContext)
             {
+                Logger.Log(Level.Info, "Requesting for the failed map evaluator again");
                 RequestMapEvaluators(1);
             }
             else
             {
+                Logger.Log(Level.Info, "Requesting for the failed master evaluator again");
                 RequestUpdateEvaluator();
             }
         }
@@ -260,7 +264,21 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
             {
                 return;
             }
-            Exceptions.Throw(new Exception(string.Format("Context with Id: {0} failed", value.Id)), Logger);
+            Exceptions.Throw(new Exception(string.Format("Data Loading Context with Id: {0} failed", value.Id)), Logger);
+        }
+
+        public void OnNext(IFailedTask value)
+        {
+            if (_imruDone)
+            {
+                return;
+            }
+            Exceptions.Throw(new Exception(string.Format("Task with Id: {0} failed", value.Id)), Logger);
+        }
+
+        public void OnNext(IRunningTask value)
+        {
+            Logger.Log(Level.Info, string.Format("Received Running Task message from task with Id: {0}", value.Id));
         }
 
         /// <summary>
@@ -429,7 +447,6 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
                     .SetMegabytes(_memoryPerMapper)
                     .SetNumber(numEvaluators)
                     .SetCores(_coresPerMapper)
-                    .SetEvaluatorBatchId("Mappers")
                     .Build());
         }
 
@@ -440,7 +457,6 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
                     .SetCores(_coresForUpdateTask)
                     .SetMegabytes(_memoryForUpdateTask)
                     .SetNumber(1)
-                    .SetEvaluatorBatchId("Master")
                     .Build());
         }
     }
