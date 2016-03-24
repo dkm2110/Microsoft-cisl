@@ -165,10 +165,11 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
 
                 _submittedEvaluators.Remove(evaluatorId);
                 _dataLoadedEvaluators.Add(evaluatorId);
-                Console.WriteLine("$$$$$$$Getting group omm. config {0} {1} {2}",
+                Console.WriteLine("$$$$$$$Getting group omm. config {0} {1} {2} {3}",
                     _submittedEvaluators.Count,
                     _dataLoadedEvaluators.Count,
-                    _partitionDescriptors.Count);
+                    _partitionDescriptors.Count,
+                    _failedEvaluators.Count);
                 return _configurationProvider[evaluatorId].GroupCommConfig;
             }
         }
@@ -227,6 +228,11 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
                 }
 
                 _submittedEvaluators.Add(evaluatorId);
+                Console.WriteLine("$$$$$$$Getting group omm. config {0} {1} {2} {3}",
+                                   _submittedEvaluators.Count,
+                                   _dataLoadedEvaluators.Count,
+                                   _partitionDescriptors.Count,
+                                   _failedEvaluators.Count); 
                 return _configurationProvider[evaluatorId].DataLoadingConfig;
             }
         }
