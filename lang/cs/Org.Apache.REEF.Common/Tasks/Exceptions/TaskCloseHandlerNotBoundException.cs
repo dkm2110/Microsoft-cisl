@@ -16,30 +16,28 @@
 // under the License.
 
 using System;
-using System.Runtime.Serialization;
-using Org.Apache.REEF.Driver.Bridge.Clr2java;
-using Org.Apache.REEF.Driver.Evaluator;
 
-namespace Org.Apache.REEF.Driver.Bridge.Events
+namespace Org.Apache.REEF.Common.Tasks.Exceptions
 {
-    [DataContract]
-    internal class CompletedEvaluator : ICompletedEvaluator
+    /// <summary>
+    /// An exception that is thrown when the task close event
+    /// handler is not bound.
+    /// </summary>
+    internal sealed class TaskCloseHandlerNotBoundException : Exception
     {
-        public CompletedEvaluator(ICompletedEvaluatorClr2Java clr2Java)
+        internal TaskCloseHandlerNotBoundException(string message)
+            : base(message)
         {
-            CompletedEvaluatorClr2Java = clr2Java;
         }
 
-        [DataMember]
-        public string Id
+        internal TaskCloseHandlerNotBoundException(Exception innerException)
+            : base(innerException.Message, innerException)
         {
-            get
-            {
-                return CompletedEvaluatorClr2Java.GetId();
-            }
         }
 
-        [DataMember]
-        public ICompletedEvaluatorClr2Java CompletedEvaluatorClr2Java { get; set; }
+        internal TaskCloseHandlerNotBoundException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+        }
     }
 }
