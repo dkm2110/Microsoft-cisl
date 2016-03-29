@@ -232,7 +232,11 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
                                    _submittedEvaluators.Count,
                                    _dataLoadedEvaluators.Count,
                                    _partitionDescriptors.Count,
-                                   _failedEvaluators.Count); 
+                                   _failedEvaluators.Count);
+                
+                /*return new ContextAndServiceConfiguration(
+                    _configurationProvider[evaluatorId].DataLoadingConfig.Context,
+                    Configurations.Merge(_configurationProvider[evaluatorId].GroupCommConfig.Service, _configurationProvider[evaluatorId].DataLoadingConfig.Service));*/
                 return _configurationProvider[evaluatorId].DataLoadingConfig;
             }
         }

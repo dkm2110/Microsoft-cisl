@@ -148,6 +148,14 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
             if (!_reachedUpdateTaskActiveContext)
             {
                 Console.WriteLine("$$$$ GEtting maser conf");
+                
+                /*var config =
+                    _serviceAndContextConfigurationProvider.GetMasterGroupCommConfiguration(allocatedEvaluator.Id);
+                allocatedEvaluator.SubmitContextAndService(
+                    ContextConfiguration.ConfigurationModule.Set(ContextConfiguration.Identifier, "Master Root Context")
+                        .Build(),
+                    config.Service);*/
+
                 allocatedEvaluator.SubmitContext(
                     ContextConfiguration.ConfigurationModule.Set(ContextConfiguration.Identifier, "Master Root Context")
                         .Build());
@@ -177,8 +185,8 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
                 var groupCommConfig =
                    _serviceAndContextConfigurationProvider.GetMasterGroupCommConfiguration(activeContext.EvaluatorId);
                 _commGroup.AddTask(IMRUConstants.UpdateTaskName);
-                var finalTaskConfig = Configurations.Merge(groupCommConfig.Service,
-                    UpdateTaskConfiguration());
+                ////var finalTaskConfig = UpdateTaskConfiguration();
+                var finalTaskConfig = Configurations.Merge(groupCommConfig.Service, UpdateTaskConfiguration());
                 _groupCommTaskStarter.QueueTask(finalTaskConfig, activeContext);
                 RequestMapEvaluators(_dataSet.Count);
             }
@@ -196,6 +204,7 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
                 }
 
                 _commGroup.AddTask(taskId);
+                ////var finalTaskConfig = MapTaskConfiguration(activeContext, taskId);
                 var finalTaskConfig = Configurations.Merge(groupCommConfig.Service,
                     MapTaskConfiguration(activeContext, taskId));
                 _groupCommTaskStarter.QueueTask(finalTaskConfig, activeContext);
@@ -231,6 +240,7 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
         {
             if (_imruDone)
             {
+                Logger.Log(Level.Info, string.Format("Evaluator with Id: {0} failed but IMRU task is completed. So ignoring.", value.Id));
                 return;
             }
 
@@ -262,6 +272,7 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
         {
             if (_imruDone)
             {
+                Logger.Log(Level.Info, string.Format("Context with Id: {0} failed but IMRU task is completed. So ignoring.", value.Id));
                 return;
             }
             Exceptions.Throw(new Exception(string.Format("Data Loading Context with Id: {0} failed", value.Id)), Logger);
@@ -271,6 +282,7 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
         {
             if (_imruDone)
             {
+                Logger.Log(Level.Info, string.Format("Task with Id: {0} failed but IMRU task is completed. So ignoring.", value.Id));
                 return;
             }
             Exceptions.Throw(new Exception(string.Format("Task with Id: {0} failed", value.Id)), Logger);
