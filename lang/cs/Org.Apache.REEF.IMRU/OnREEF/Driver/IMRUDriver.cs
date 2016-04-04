@@ -75,13 +75,14 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
         private readonly int _memoryPerMapper;
         private readonly int _memoryForUpdateTask;
         private readonly ISet<IPerMapperConfigGenerator> _perMapperConfigs;
-        private readonly ConcurrentBag<ICompletedTask> _completedTasks;
+        private readonly IList<ICompletedTask> _completedTasks;
         private readonly int _allowedFailedEvaluators;
         private int _currentFailedEvaluators = 0;
         private bool _reachedUpdateTaskActiveContext = false;
         private readonly bool _invokeGC;
         private bool _imruDone = false;
         private int _taskReady = 0;
+        private readonly object _lock = new object();
         private readonly ServiceAndContextConfigurationProvider<TMapInput, TMapOutput, TDataHandler>
             _serviceAndContextConfigurationProvider;
 
@@ -107,7 +108,7 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
             _memoryPerMapper = memoryPerMapper;
             _memoryForUpdateTask = memoryForUpdateTask;
             _perMapperConfigs = perMapperConfigs;
-            _completedTasks = new ConcurrentBag<ICompletedTask>();
+            _completedTasks = new List<ICompletedTask>();
             _allowedFailedEvaluators = (int)(failedEvaluatorsFraction * dataSet.Count);
             _invokeGC = invokeGC;
 
@@ -220,19 +221,23 @@ namespace Org.Apache.REEF.IMRU.OnREEF.Driver
         /// <param name="completedTask">The link to the completed task</param>
         public void OnNext(ICompletedTask completedTask)
         {
-            Logger.Log(Level.Info, string.Format("Received completed task message from task Id: {0}", completedTask.Id));
-            _completedTasks.Add(completedTask);
-
-            if (_completedTasks.Count != _dataSet.Count + 1)
+            lock (_lock)
             {
-                return;
-            }
+                Logger.Log(Level.Info,
+                    string.Format("Received completed task message from task Id: {0}", completedTask.Id));
+                _completedTasks.Add(completedTask);
 
-            _imruDone = true;
-            foreach (var task in _completedTasks)
-            {
-                Logger.Log(Level.Info, string.Format("Disposing task: {0}", task.Id));
-                task.ActiveContext.Dispose();
+                if (_completedTasks.Count != _dataSet.Count + 1)
+                {
+                    return;
+                }
+
+                _imruDone = true;
+                foreach (var task in _completedTasks)
+                {
+                    Logger.Log(Level.Info, string.Format("Disposing task: {0}", task.Id));
+                    task.ActiveContext.Dispose();
+                }
             }
         }
 
