@@ -16,16 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.reef.runtime.common.evaluator.parameters;
 
-package org.apache.reef.driver.parameters;
-
-import org.apache.reef.tang.annotations.NamedParameter;
 import org.apache.reef.tang.annotations.Name;
+import org.apache.reef.tang.annotations.NamedParameter;
 
 /**
- * @deprecated in 0.14. Use org.apache.reef.runtime.yarn.driver.parameters.JobSubmissionDirectory.
+ * The evaluator configuration.
+ * An alias has been defined for this named parameter in .Net REEF as
+ * Org.Apache.REEF.Common.Runtime.Evaluator.Utils.EvaluatorConfiguration
  */
-// TODO[JIRA REEF-904]: Act on deprecated JobSubmissionDirectory and JOB_SUBMISSION_DIRECTORY
-@NamedParameter(doc = "The job submission directory.")
-public final class JobSubmissionDirectory implements Name<String> {
+@NamedParameter(doc = "The evaluator configuration.")
+public final class EvaluatorConfiguration implements Name<String> {
+  private EvaluatorConfiguration() {
+  }
 }

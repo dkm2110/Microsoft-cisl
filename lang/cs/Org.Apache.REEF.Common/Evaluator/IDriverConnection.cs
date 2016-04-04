@@ -15,10 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
+using Org.Apache.REEF.Tang.Annotations;
 using Org.Apache.REEF.Utilities.Attributes;
 
 namespace Org.Apache.REEF.Common.Evaluator
 {
+    [DefaultImplementation(typeof(MissingDriverConnection))]
     public interface IDriverConnection
     {
         [Private]
