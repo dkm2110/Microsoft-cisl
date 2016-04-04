@@ -57,31 +57,7 @@ namespace Org.Apache.REEF.Wake.Remote.Impl
             }
 
             Client = new TcpClient();
-
-            int connectionTrialCount = 0;
-
-            while (connectionTrialCount < 20)
-            {
-                LOGGER.Log(Level.Info,
-                    string.Format("Trying connection to remote end point: {0} {1} time", remoteEndpoint, connectionTrialCount + 1));
-                try
-                {
-                    Client.Connect(remoteEndpoint);
-                    LOGGER.Log(Level.Info,
-                        string.Format("Established connection in {0} trial", connectionTrialCount + 1));
-                    break;
-                }
-                catch (Exception e)
-                {
-                    connectionTrialCount++;
-                    if (connectionTrialCount == 20)
-                    {
-                        LOGGER.Log(Level.Info, "Tried 20 times, but could not establish connection");
-                        throw e;
-                    }
-                    Thread.Sleep(1000);
-                }
-            }
+            Client.Connect(remoteEndpoint);
 
             _codec = codec;
             _channel = new Channel(Client.GetStream());
