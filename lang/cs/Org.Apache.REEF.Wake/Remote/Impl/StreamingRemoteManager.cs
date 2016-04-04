@@ -32,6 +32,7 @@ namespace Org.Apache.REEF.Wake.Remote.Impl
         private readonly StreamingTransportServer<IRemoteEvent<T>> _server;
         private readonly Dictionary<IPEndPoint, ProxyObserver> _cachedClients;
         private readonly IStreamingCodec<IRemoteEvent<T>> _remoteEventCodec;
+        private readonly ITcpClientFactory _tcpClientFactory;
 
         /// <summary>
         /// Constructs a DefaultRemoteManager listening on the specified address and
@@ -40,22 +41,30 @@ namespace Org.Apache.REEF.Wake.Remote.Impl
         /// <param name="localAddress">The address to listen on</param>
         /// <param name="tcpPortProvider">Tcp port provider</param>
         /// <param name="streamingCodec">Streaming codec</param>
-        internal StreamingRemoteManager(IPAddress localAddress, ITcpPortProvider tcpPortProvider, IStreamingCodec<T> streamingCodec)
+       /// <param name="tcpClientFactory">provides TcpClient for given endpoint</param>
+        internal StreamingRemoteManager(IPAddress localAddress,
+            ITcpPortProvider tcpPortProvider,
+            IStreamingCodec<T> streamingCodec,
+            ITcpClientFactory tcpClientFactory)
         {
             if (localAddress == null)
             {
                 throw new ArgumentNullException("localAddress");
             }
 
+            _tcpClientFactory = tcpClientFactory;
             _observerContainer = new ObserverContainer<T>();
             _cachedClients = new Dictionary<IPEndPoint, ProxyObserver>();
             _remoteEventCodec = new RemoteEventStreamingCodec<T>(streamingCodec);
 
             // Begin to listen for incoming messages
-            _server = new StreamingTransportServer<IRemoteEvent<T>>(localAddress, _observerContainer, tcpPortProvider, _remoteEventCodec);
+            _server = new StreamingTransportServer<IRemoteEvent<T>>(localAddress,
+                _observerContainer,
+                tcpPortProvider,
+                _remoteEventCodec);
             _server.Run();
 
-            LocalEndpoint = _server.LocalEndpoint;  
+            LocalEndpoint = _server.LocalEndpoint;
             Identifier = new SocketRemoteIdentifier(LocalEndpoint);
         }
 
@@ -108,7 +117,10 @@ namespace Org.Apache.REEF.Wake.Remote.Impl
             if (!_cachedClients.TryGetValue(remoteEndpoint, out remoteObserver))
             {
                 StreamingTransportClient<IRemoteEvent<T>> client =
-                    new StreamingTransportClient<IRemoteEvent<T>>(remoteEndpoint, _observerContainer, _remoteEventCodec);
+                    new StreamingTransportClient<IRemoteEvent<T>>(remoteEndpoint,
+                        _observerContainer,
+                        _remoteEventCodec,
+                        _tcpClientFactory);
 
                 remoteObserver = new ProxyObserver(client);
                 _cachedClients[remoteEndpoint] = remoteObserver;

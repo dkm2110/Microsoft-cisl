@@ -18,7 +18,6 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
-using Org.Apache.REEF.Tang.Annotations;
 using Org.Apache.REEF.Utilities.Logging;
 using Org.Apache.REEF.Wake.Util;
 
@@ -35,6 +34,7 @@ namespace Org.Apache.REEF.Wake.Remote.Impl
         private readonly TransportServer<IRemoteEvent<T>> _server; 
         private readonly Dictionary<IPEndPoint, ProxyObserver> _cachedClients;
         private readonly ICodec<IRemoteEvent<T>> _codec;
+        private readonly ITcpClientFactory _tcpClientFactory;
 
         /// <summary>
         /// Constructs a DefaultRemoteManager listening on the specified address and any
@@ -44,7 +44,12 @@ namespace Org.Apache.REEF.Wake.Remote.Impl
         /// <param name="port">The port to listen on</param>
         /// <param name="codec">The codec used for serializing messages</param>
         /// <param name="tcpPortProvider">provides port numbers to listen</param>
-        internal DefaultRemoteManager(IPAddress localAddress, int port, ICodec<T> codec, ITcpPortProvider tcpPortProvider)
+        /// <param name="tcpClientFactory">provides TcpClient for given endpoint</param>
+        internal DefaultRemoteManager(IPAddress localAddress,
+            int port,
+            ICodec<T> codec,
+            ITcpPortProvider tcpPortProvider,
+            ITcpClientFactory tcpClientFactory)
         {
             if (localAddress == null)
             {
@@ -59,6 +64,7 @@ namespace Org.Apache.REEF.Wake.Remote.Impl
                 throw new ArgumentNullException("codec");
             }
 
+            _tcpClientFactory = tcpClientFactory;
             _observerContainer = new ObserverContainer<T>();
             _codec = new RemoteEventCodec<T>(codec);
             _cachedClients = new Dictionary<IPEndPoint, ProxyObserver>();
@@ -66,7 +72,9 @@ namespace Org.Apache.REEF.Wake.Remote.Impl
             IPEndPoint localEndpoint = new IPEndPoint(localAddress, port);
 
             // Begin to listen for incoming messages
-            _server = new TransportServer<IRemoteEvent<T>>(localEndpoint, _observerContainer, _codec,
+            _server = new TransportServer<IRemoteEvent<T>>(localEndpoint,
+                _observerContainer,
+                _codec,
                 tcpPortProvider);
             _server.Run();
 
@@ -78,7 +86,8 @@ namespace Org.Apache.REEF.Wake.Remote.Impl
         /// Constructs a DefaultRemoteManager. Does not listen for incoming messages.
         /// </summary>
         /// <param name="codec">The codec used for serializing messages</param>
-        internal DefaultRemoteManager(ICodec<T> codec)
+        /// <param name="tcpClientFactory">provides TcpClient for given endpoint</param>
+        internal DefaultRemoteManager(ICodec<T> codec, ITcpClientFactory tcpClientFactory)
         {
             using (LOGGER.LogFunction("DefaultRemoteManager::DefaultRemoteManager"))
             {
@@ -87,6 +96,7 @@ namespace Org.Apache.REEF.Wake.Remote.Impl
                     throw new ArgumentNullException("codec");
                 }
 
+                _tcpClientFactory = tcpClientFactory;
                 _observerContainer = new ObserverContainer<T>();
                 _codec = new RemoteEventCodec<T>(codec);
                 _cachedClients = new Dictionary<IPEndPoint, ProxyObserver>();
@@ -145,7 +155,7 @@ namespace Org.Apache.REEF.Wake.Remote.Impl
             if (!_cachedClients.TryGetValue(remoteEndpoint, out remoteObserver))
             {
                 TransportClient<IRemoteEvent<T>> client = 
-                    new TransportClient<IRemoteEvent<T>>(remoteEndpoint, _codec, _observerContainer);
+                    new TransportClient<IRemoteEvent<T>>(remoteEndpoint, _codec, _observerContainer, _tcpClientFactory);
                 var msg = string.Format("NewClientConnection: Local {0} connected to Remote {1}",
                     client.Link.LocalEndpoint.ToString(), 
                     client.Link.RemoteEndpoint.ToString());
