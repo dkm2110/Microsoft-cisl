@@ -15,9 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
+using System;
 using System.Net;
 using System.Net.Sockets;
 using Org.Apache.REEF.Tang.Annotations;
+using Org.Apache.REEF.Utilities.Diagnostics;
 using Org.Apache.REEF.Utilities.Logging;
 
 namespace Org.Apache.REEF.Wake.Remote.Impl
@@ -55,11 +57,11 @@ namespace Org.Apache.REEF.Wake.Remote.Impl
                 Logger.Log(Level.Info, msg);
                 return client;
             }
-            catch
+            catch (Exception e)
             {
                 var msg = string.Format("Connection to endpoint {0} failed", endPoint);
-                Logger.Log(Level.Info, msg);
-                throw;
+                Exceptions.CaughtAndThrow(e, Level.Error, msg, Logger);
+                return null;
             }
         }
     }

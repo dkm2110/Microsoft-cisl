@@ -38,7 +38,9 @@ namespace Org.Apache.REEF.Wake.Tests
             IPAddress localIpAddress = IPAddress.Parse("127.0.0.1");
             const int retryCount = 5;
             const int sleepTimeInMs = 500;
+            const string message = "Retry - Count:";
             IPEndPoint remoteEndpoint = new IPEndPoint(localIpAddress, 8900);
+
             var memStream = new MemoryStream();
             var writer = new StreamWriter(memStream);
             Console.SetOut(writer);
@@ -53,6 +55,7 @@ namespace Org.Apache.REEF.Wake.Tests
             try
             {
                 tmp.Connect(remoteEndpoint);
+                Assert.False(true);
             }
             catch
             {
@@ -63,7 +66,7 @@ namespace Org.Apache.REEF.Wake.Tests
                     int counter = 0;
                     while ((line = reader.ReadLine()) != null)
                     {
-                        if (line.Contains("Retry - Count:"))
+                        if (line.Contains(message))
                         {
                             counter++;
                         }

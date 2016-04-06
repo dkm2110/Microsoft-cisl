@@ -66,10 +66,6 @@ namespace Org.Apache.REEF.Wake.Remote.Impl
             }
 
             _client = tcpClientFactory.Connect(remoteEndpoint);
-
-           /* _client = new TcpClient();
-            _client.Connect(remoteEndpoint);*/
-
             var stream = _client.GetStream();
             _localEndpoint = GetLocalEndpoint();
             _disposed = false;

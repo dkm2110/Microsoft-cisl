@@ -58,9 +58,6 @@ namespace Org.Apache.REEF.Wake.Remote.Impl
             }
 
             Client = tcpClientFactory.Connect(remoteEndpoint);
-            
-            /*Client = new TcpClient();
-            Client.Connect(remoteEndpoint);*/
 
             _codec = codec;
             _channel = new Channel(Client.GetStream());
